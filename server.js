@@ -30,7 +30,8 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
 // ── File Upload Config ────────────────────────────────────────────────────────
-const UPLOAD_DIR = path.join(__dirname, 'uploads');
+// Vercel serverless only allows writes to /tmp; use it when VERCEL env is set
+const UPLOAD_DIR = process.env.VERCEL ? '/tmp/nlm-uploads' : path.join(__dirname, 'uploads');
 if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 
 const storage = multer.diskStorage({

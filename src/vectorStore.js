@@ -9,8 +9,9 @@ const fs   = require('fs');
 const path = require('path');
 const { cosineSimilarity } = require('./embedder');
 
-const DATA_DIR  = path.join(__dirname, '..', 'data');
-const STORE_PATH = path.join(DATA_DIR, 'vector_store.json');
+const DATA_DIR   = path.join(__dirname, '..', 'data');
+const STORE_PATH  = path.join(DATA_DIR, 'vector_store.json');
+const IS_VERCEL   = !!process.env.VERCEL; // Vercel has no writable project dir
 
 // In-memory store: Map<docId, { metadata, chunks }>
 const store = new Map();
@@ -18,6 +19,7 @@ const store = new Map();
 // ── Persistence ──────────────────────────────────────────────────────────────
 
 function loadFromDisk() {
+  if (IS_VERCEL) return; // Serverless: no persistent disk
   try {
     if (fs.existsSync(STORE_PATH)) {
       const data = JSON.parse(fs.readFileSync(STORE_PATH, 'utf-8'));
@@ -34,6 +36,7 @@ function loadFromDisk() {
 }
 
 function saveToDisk() {
+  if (IS_VERCEL) return; // Serverless: in-memory only
   try {
     if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
     const data = {};
