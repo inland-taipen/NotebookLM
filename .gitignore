@@ -1,0 +1,8 @@
+node_modules/
+uploads/
+.env
+*.log
+.DS_Store
+
+# Persist vector store data on disk, but don't commit the actual data
+data/*.json

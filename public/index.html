@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NotebookLLM — Chat with Your Documents</title>
+  <meta name="description" content="RAG-powered document intelligence. Upload PDFs or text files and have a grounded AI conversation." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- ── Top Bar ───────────────────────────────────────────── -->
+  <header class="topbar" role="banner">
+    <div class="topbar-left">
+      <div class="topbar-logo" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <span class="topbar-brand">NotebookLLM</span>
+      <div class="topbar-divider" aria-hidden="true"></div>
+      <span class="topbar-notebook-name" id="notebookName">Untitled notebook</span>
+    </div>
+    <div class="topbar-right">
+      <div class="topbar-model-badge" id="modelBadge">
+        <span class="model-dot"></span>
+        <span>LLaMA 3.3 70B</span>
+      </div>
+      <button class="topbar-icon-btn" type="button" aria-label="Settings" title="Settings" id="btnSettings">
+        <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z" stroke="currentColor" stroke-width="2"/></svg>
+      </button>
+      <div class="topbar-avatar" aria-label="User account" title="Account">A</div>
+    </div>
+  </header>
+
+  <!-- ── App Shell ──────────────────────────────────────────── -->
+  <div class="app-shell" id="app">
+
+    <!-- ══ SOURCES SIDEBAR ══════════════════════════════════ -->
+    <aside class="sidebar" id="sidebar" aria-label="Sources panel">
+
+      <div class="sidebar-section-header">
+        <span class="sidebar-section-title">Sources</span>
+        <span class="sources-count-badge" id="docCount">0</span>
+      </div>
+
+      <!-- Upload Zone -->
+      <div class="upload-section">
+        <div class="drop-zone" id="dropZone" role="button" tabindex="0" aria-label="Upload document — click or drag & drop">
+          <div class="drop-zone-inner" id="dropZoneInner">
+            <div class="drop-icon" id="dropIcon">
+              <svg viewBox="0 0 24 24" fill="none"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+            <p class="drop-title" id="dropTitle">Drop file here</p>
+            <p class="drop-sub">PDF, TXT, MD · up to 50 MB</p>
+            <button class="btn-browse" id="btnBrowse" type="button">Browse file</button>
+          </div>
+          <!-- Progress (shown during upload) -->
+          <div class="upload-progress" id="uploadProgress" hidden>
+            <div class="upload-progress-bar-track">
+              <div class="upload-progress-bar" id="progressBar"></div>
+            </div>
+            <p class="upload-progress-label" id="progressLabel">Uploading…</p>
+          </div>
+        </div>
+        <input type="file" id="fileInput" accept=".pdf,.txt,.md" hidden aria-hidden="true" />
+      </div>
+
+      <!-- Multi-select toolbar (shown when >1 doc) -->
+      <div class="multi-select-toolbar" id="multiSelectToolbar" hidden>
+        <span class="multi-select-label" id="multiSelectLabel">0 selected</span>
+        <button class="multi-select-action-btn" id="btnSelectAll" type="button">Select all</button>
+        <button class="multi-select-action-btn" id="btnClearSel" type="button">Clear</button>
+      </div>
+
+      <!-- Documents list -->
+      <div class="docs-list" id="docsList">
+        <div class="docs-empty" id="docsEmpty">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><polyline points="14 2 14 8 20 8" stroke="currentColor" stroke-width="1.5"/></svg>
+          <p>No sources yet</p>
+          <p class="docs-empty-sub">Upload a document above to get started</p>
+        </div>
+      </div>
+
+      <!-- Active query indicator -->
+      <div class="active-query-pill" id="activeQueryPill" hidden>
+        <svg viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="8" stroke="currentColor" stroke-width="2"/><line x1="21" y1="21" x2="16.65" y2="16.65" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        <span id="activeQueryLabel">Querying 0 docs</span>
+      </div>
+
+    </aside>
+
+    <!-- ══ CHAT MAIN ════════════════════════════════════════ -->
+    <main class="chat-main" id="chatMain">
+
+      <header class="chat-header">
+        <button class="btn-icon-sm" id="btnToggleSidebar" aria-label="Toggle sidebar" title="Toggle sidebar">
+          <svg viewBox="0 0 24 24" fill="none"><line x1="3" y1="6" x2="21" y2="6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="3" y1="12" x2="21" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="3" y1="18" x2="21" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        </button>
+        <span class="chat-header-title">Chat</span>
+        <div class="chat-header-right">
+          <button class="btn-icon-sm" id="btnClearChat" aria-label="Clear chat" title="Clear conversation">
+            <svg viewBox="0 0 24 24" fill="none"><polyline points="3 6 5 6 21 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M19 6l-1 14H6L5 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M10 11v6M14 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M9 6V4h6v2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          </button>
+        </div>
+      </header>
+
+      <!-- Messages -->
+      <div class="messages-area" id="messagesArea" role="log" aria-live="polite" aria-label="Conversation">
+
+        <!-- Welcome state -->
+        <div class="welcome-state" id="welcomeState">
+          <div class="welcome-graphic">
+            <div class="welcome-rings">
+              <div class="ring ring-1"></div>
+              <div class="ring ring-2"></div>
+              <div class="ring ring-3"></div>
+            </div>
+            <div class="welcome-icon">
+              <svg viewBox="0 0 24 24" fill="none"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+          </div>
+          <h1 class="welcome-title">Chat with your documents</h1>
+          <p class="welcome-sub">Upload a source in the sidebar, select one or more, then ask anything. Answers are grounded strictly in your documents.</p>
+          <div class="welcome-chips">
+            <span class="chip">📄 PDF &amp; Text</span>
+            <span class="chip">🔍 Vector search</span>
+            <span class="chip">⚡ Live streaming</span>
+            <span class="chip">📚 Multi-doc</span>
+            <span class="chip">🎯 Grounded answers</span>
+          </div>
+        </div>
+
+        <div class="messages-list" id="messagesList"></div>
+      </div>
+
+      <!-- Input bar -->
+      <div class="input-area">
+        <div class="input-wrap">
+          <div class="suggestions-row" id="suggestionsRow"></div>
+          <div class="input-row">
+            <textarea
+              id="questionInput"
+              class="question-input"
+              placeholder="Select a source to start chatting…"
+              rows="1"
+              disabled
+              aria-label="Ask a question"
+              aria-disabled="true"
+            ></textarea>
+            <button class="btn-send" id="btnSend" disabled aria-label="Send question">
+              <svg viewBox="0 0 24 24" fill="none"><line x1="22" y1="2" x2="11" y2="13" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><polygon points="22 2 15 22 11 13 2 9 22 2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+            </button>
+          </div>
+          <p class="input-hint" id="inputHint">Select a source above to enable chat</p>
+        </div>
+      </div>
+
+      <div class="disclaimer">NotebookLLM can be inaccurate — always verify important claims.</div>
+
+    </main>
+
+    <!-- ══ STUDIO PANEL ═════════════════════════════════════ -->
+    <aside class="studio-panel" id="studioPanel" aria-label="Studio panel">
+
+      <div class="studio-header">
+        <span class="studio-title">Studio</span>
+      </div>
+
+      <!-- No-doc placeholder -->
+      <div class="studio-empty" id="studioEmpty">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" stroke="currentColor" stroke-width="1.5"/><polyline points="14 2 14 8 20 8" stroke="currentColor" stroke-width="1.5"/></svg>
+        <p>Select a source to see details here</p>
+      </div>
+
+      <!-- Document details (shown when doc selected) -->
+      <div class="studio-doc-info" id="studioDocInfo" hidden>
+        <div class="studio-card">
+          <div class="studio-card-label">Active source(s)</div>
+          <div class="studio-card-value" id="studioFilenames">—</div>
+        </div>
+        <div class="studio-stats-grid">
+          <div class="studio-stat">
+            <div class="studio-stat-val" id="studioChunks">—</div>
+            <div class="studio-stat-label">Chunks</div>
+          </div>
+          <div class="studio-stat">
+            <div class="studio-stat-val" id="studioChars">—</div>
+            <div class="studio-stat-label">Characters</div>
+          </div>
+          <div class="studio-stat">
+            <div class="studio-stat-val" id="studioUploadedAt">—</div>
+            <div class="studio-stat-label">Uploaded</div>
+          </div>
+          <div class="studio-stat">
+            <div class="studio-stat-val" id="studioDocCount">—</div>
+            <div class="studio-stat-label">Documents</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- RAG pipeline steps -->
+      <div class="studio-pipeline">
+        <div class="studio-card-label" style="margin-bottom:10px;">RAG Pipeline</div>
+        <div class="pipeline-steps">
+          <div class="step"><span class="step-num">1</span><span class="step-text">Parse PDF / TXT / MD</span></div>
+          <div class="step"><span class="step-num">2</span><span class="step-text">Smart paragraph chunking (800 chars, 150 overlap)</span></div>
+          <div class="step"><span class="step-num">3</span><span class="step-text">Gemini <code>gemini-embedding-2</code> (3072-dim)</span></div>
+          <div class="step"><span class="step-num">4</span><span class="step-text">Persist to disk — survives restarts</span></div>
+          <div class="step"><span class="step-num">5</span><span class="step-text">Cosine similarity retrieval (top-K)</span></div>
+          <div class="step"><span class="step-num">6</span><span class="step-text">Groq LLaMA 3.3 70B — streamed answer</span></div>
+        </div>
+      </div>
+
+      <!-- Last query source chunks -->
+      <div class="studio-sources" id="studioSources" hidden>
+        <div class="studio-card-label" style="margin-bottom:8px;">Last retrieved chunks</div>
+        <div class="studio-chunks-list" id="studioChunksList"></div>
+      </div>
+
+    </aside>
+
+  </div><!-- /.app-shell -->
+
+  <!-- Toast container -->
+  <div class="toast-container" id="toastContainer" aria-live="assertive"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
