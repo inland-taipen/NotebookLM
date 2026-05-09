@@ -2,7 +2,7 @@
   "version": 2,
   "build": {
     "env": {
-      "NODE_VERSION": "18"
+      "NODE_VERSION": "24"
     }
   },
   "functions": {
