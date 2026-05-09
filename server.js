@@ -16,7 +16,7 @@ const multer  = require('multer');
 const cors    = require('cors');
 const path    = require('path');
 const fs      = require('fs');
-const { v4: uuidv4 } = require('uuid');
+const { randomUUID: uuidv4 } = require('crypto'); // built-in, no ESM issues
 
 const { ingestDocument, queryDocument, queryDocuments, queryDocumentsStream } = require('./src/pipeline');
 const vectorStore = require('./src/vectorStore');
