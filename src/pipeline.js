@@ -13,7 +13,8 @@
 require('dotenv').config();
 const fs   = require('fs');
 const path = require('path');
-const pdfParseModule = require('pdf-parse');
+// pdf-parse is lazy-loaded inside ingestDocument() to avoid
+// serverless cold-start crashes (it accesses filesystem on require)
 
 const { chunkTextSmart }                      = require('./chunker');
 const { embedText, embedChunks }              = require('./embedder');
@@ -23,6 +24,8 @@ const { generateAnswer, generateAnswerStream } = require('./generator');
 // ── Ingestion ─────────────────────────────────────────────────────────────────
 
 async function ingestDocument(filePath, docId, filename) {
+  // Lazy-load pdf-parse only when actually needed
+  const pdfParseModule = require('pdf-parse');
   let rawText = '';
   const ext = path.extname(filename).toLowerCase();
 
