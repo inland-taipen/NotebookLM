@@ -196,7 +196,7 @@ app.delete('/api/documents/:docId', (req, res) => {
 });
 
 // ── SPA fallback ──────────────────────────────────────────────────────────────
-app.get('/{*path}', (req, res) =>
+app.get('*', (req, res) =>
   res.sendFile(path.join(__dirname, 'public', 'index.html'))
 );
 
@@ -206,10 +206,12 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: err.message });
 });
 
-// ── Start ─────────────────────────────────────────────────────────────────────
-app.listen(PORT, () => {
-  console.log(`\n🚀 NotebookLLM server running at http://localhost:${PORT}`);
-  console.log(`   Upload documents and start chatting!\n`);
-});
+// ── Start (skip in Vercel serverless — it manages the port itself) ───────────
+if (!process.env.VERCEL) {
+  app.listen(PORT, () => {
+    console.log(`\n🚀 NotebookLLM server running at http://localhost:${PORT}`);
+    console.log(`   Upload documents and start chatting!\n`);
+  });
+}
 
 module.exports = app;
