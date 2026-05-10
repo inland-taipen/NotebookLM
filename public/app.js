@@ -90,8 +90,8 @@ fileInput.addEventListener('change', () => { if (fileInput.files[0]) handleFile(
 
 async function handleFile(file) {
   const ext = '.' + file.name.split('.').pop().toLowerCase();
-  if (!['.pdf', '.txt', '.md'].includes(ext)) {
-    showToast('Only PDF, TXT, and MD files are supported.', 'error'); return;
+  if (!['.pdf', '.txt', '.md', '.doc', '.docx', '.csv'].includes(ext)) {
+    showToast('Supported: PDF, DOC, DOCX, CSV, TXT, MD', 'error'); return;
   }
 
   dropZoneInner.hidden = true;
@@ -168,7 +168,10 @@ function renderDocsList() {
     item.className = 'doc-item' + (state.selectedIds.has(doc.docId) ? ' selected' : '');
     item.dataset.id = doc.docId;
 
-    const icon    = doc.filename.endsWith('.pdf') ? '📄' : '📝';
+    const icon = doc.filename.endsWith('.pdf') ? '📄'
+                : doc.filename.endsWith('.csv') ? '📊'
+                : (doc.filename.endsWith('.doc') || doc.filename.endsWith('.docx')) ? '📝'
+                : '📃';
     const time    = new Date(doc.uploadedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     const checked = state.selectedIds.has(doc.docId);
 

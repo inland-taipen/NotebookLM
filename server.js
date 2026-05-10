@@ -43,9 +43,9 @@ const upload = multer({
   storage,
   limits: { fileSize: 50 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
-    const allowed = ['.pdf', '.txt', '.md'];
+    const allowed = ['.pdf', '.txt', '.md', '.doc', '.docx', '.csv'];
     const ext = path.extname(file.originalname).toLowerCase();
-    allowed.includes(ext) ? cb(null, true) : cb(new Error('Only PDF, TXT, and MD files are allowed.'));
+    allowed.includes(ext) ? cb(null, true) : cb(new Error('Supported formats: PDF, DOC, DOCX, CSV, TXT, MD'));
   },
 });
 

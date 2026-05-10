@@ -53,7 +53,7 @@
               <svg viewBox="0 0 24 24" fill="none"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
             </div>
             <p class="drop-title" id="dropTitle">Drop file here</p>
-            <p class="drop-sub">PDF, TXT, MD · up to 50 MB</p>
+            <p class="drop-sub">PDF, DOC, DOCX, TXT, CSV, MD · up to 50 MB</p>
             <button class="btn-browse" id="btnBrowse" type="button">Browse file</button>
           </div>
           <!-- Progress (shown during upload) -->
@@ -64,7 +64,7 @@
             <p class="upload-progress-label" id="progressLabel">Uploading…</p>
           </div>
         </div>
-        <input type="file" id="fileInput" accept=".pdf,.txt,.md" hidden aria-hidden="true" />
+        <input type="file" id="fileInput" accept=".pdf,.doc,.docx,.txt,.csv,.md" hidden aria-hidden="true" />
       </div>
 
       <!-- Multi-select toolbar (shown when >1 doc) -->
@@ -204,7 +204,7 @@
       <div class="studio-pipeline">
         <div class="studio-card-label" style="margin-bottom:10px;">RAG Pipeline</div>
         <div class="pipeline-steps">
-          <div class="step"><span class="step-num">1</span><span class="step-text">Parse PDF / TXT / MD</span></div>
+          <div class="step"><span class="step-num">1</span><span class="step-text">Parse PDF / DOCX / CSV / TXT / MD</span></div>
           <div class="step"><span class="step-num">2</span><span class="step-text">Smart paragraph chunking (800 chars, 150 overlap)</span></div>
           <div class="step"><span class="step-num">3</span><span class="step-text">Gemini <code>gemini-embedding-2</code> (3072-dim)</span></div>
           <div class="step"><span class="step-num">4</span><span class="step-text">Persist to disk — survives restarts</span></div>

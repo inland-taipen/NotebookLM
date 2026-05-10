@@ -24,12 +24,12 @@ const { generateAnswer, generateAnswerStream } = require('./generator');
 // ── Ingestion ─────────────────────────────────────────────────────────────────
 
 async function ingestDocument(filePath, docId, filename) {
-  // Lazy-load pdf-parse only when actually needed
-  const pdfParseModule = require('pdf-parse');
   let rawText = '';
   const ext = path.extname(filename).toLowerCase();
 
   if (ext === '.pdf') {
+    // Lazy-load pdf-parse to avoid serverless cold-start crashes
+    const pdfParseModule = require('pdf-parse');
     const buffer = fs.readFileSync(filePath);
     if (typeof pdfParseModule === 'function') {
       rawText = (await pdfParseModule(buffer)).text;
@@ -42,10 +42,32 @@ async function ingestDocument(filePath, docId, filename) {
     }
     if (!rawText || rawText.trim().length < 10)
       throw new Error('PDF appears empty or image-only (no extractable text).');
+
+  } else if (ext === '.doc' || ext === '.docx') {
+    // Extract text from Word documents using mammoth
+    const mammoth = require('mammoth');
+    const result  = await mammoth.extractRawText({ path: filePath });
+    rawText = result.value;
+    if (!rawText || rawText.trim().length < 10)
+      throw new Error('Word document appears to be empty or contains no extractable text.');
+
+  } else if (ext === '.csv') {
+    // Parse CSV — convert rows into readable key:value sentences for better RAG context
+    const raw = fs.readFileSync(filePath, 'utf-8');
+    const lines = raw.split('\n').map(l => l.trim()).filter(Boolean);
+    if (lines.length < 2) throw new Error('CSV file appears empty or has no data rows.');
+    const headers = lines[0].split(',').map(h => h.replace(/^"|"$/g, '').trim());
+    const rows = lines.slice(1).map(line => {
+      const vals = line.split(',').map(v => v.replace(/^"|"$/g, '').trim());
+      return headers.map((h, i) => `${h}: ${vals[i] ?? ''}`).join(' | ');
+    });
+    rawText = `CSV Data from "${filename}"\nColumns: ${headers.join(', ')}\n\n` + rows.join('\n');
+
   } else if (ext === '.txt' || ext === '.md') {
     rawText = fs.readFileSync(filePath, 'utf-8');
+
   } else {
-    throw new Error(`Unsupported file type: ${ext}`);
+    throw new Error(`Unsupported file type: ${ext}. Supported: PDF, DOC, DOCX, CSV, TXT, MD`);
   }
 
   const chunks        = chunkTextSmart(rawText, 800, 150);
