@@ -307,10 +307,13 @@ async function sendQuestion() {
   const typingId = appendTyping();
 
   try {
+    const modeSelect = $('modeSelect');
+    const mode = modeSelect ? modeSelect.value : 'fast';
+
     const res = await fetch(`${API}/api/query/stream`, {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ docIds: [...state.selectedIds], question, topK: 5 }),
+      body:    JSON.stringify({ docIds: [...state.selectedIds], question, topK: 5, mode }),
     });
 
     if (!res.ok) {

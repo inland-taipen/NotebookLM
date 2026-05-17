@@ -91,15 +91,15 @@ app.post('/api/upload', upload.single('document'), async (req, res) => {
 
 // ── One-shot Query (single or multi-doc) ─────────────────────────────────────
 app.post('/api/query', async (req, res) => {
-  const { docId, docIds: rawDocIds, question, topK = 5 } = req.body;
+  const { docId, docIds: rawDocIds, question, topK = 5, mode = 'fast' } = req.body;
   const docIds = rawDocIds || (docId ? [docId] : []);
 
   if (!docIds.length) return res.status(400).json({ error: 'docId or docIds required.' });
   if (!question?.trim()) return res.status(400).json({ error: 'question is required.' });
 
   try {
-    console.log(`[QUERY] docs=${docIds.join(',')} | q="${question.slice(0, 80)}"`);
-    const result = await queryDocuments(docIds, question.trim(), topK);
+    console.log(`[QUERY] docs=${docIds.join(',')} | q="${question.slice(0, 80)}" | mode=${mode}`);
+    const result = await queryDocuments(docIds, question.trim(), topK, mode);
     console.log(`[QUERY] ✓ ${result.tokensUsed} tokens`);
 
     res.json({
@@ -123,7 +123,7 @@ app.post('/api/query', async (req, res) => {
 
 // ── Streaming Query (SSE) ─────────────────────────────────────────────────────
 app.post('/api/query/stream', async (req, res) => {
-  const { docId, docIds: rawDocIds, question, topK = 5 } = req.body;
+  const { docId, docIds: rawDocIds, question, topK = 5, mode = 'fast' } = req.body;
   const docIds = rawDocIds || (docId ? [docId] : []);
 
   if (!docIds.length) return res.status(400).json({ error: 'docId or docIds required.' });
@@ -139,8 +139,8 @@ app.post('/api/query/stream', async (req, res) => {
   const send = obj => res.write(`data: ${JSON.stringify(obj)}\n\n`);
 
   try {
-    console.log(`[STREAM] docs=${docIds.join(',')} | q="${question.slice(0, 80)}"`);
-    const { stream, chunks, metas } = await queryDocumentsStream(docIds, question.trim(), topK);
+    console.log(`[STREAM] docs=${docIds.join(',')} | q="${question.slice(0, 80)}" | mode=${mode}`);
+    const { stream, chunks, metas } = await queryDocumentsStream(docIds, question.trim(), topK, mode);
 
     // Send retrieved chunks metadata first so the frontend can show sources immediately
     send({

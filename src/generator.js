@@ -99,4 +99,4 @@ async function generateAnswerStream(question, contextChunks, filename = 'the doc
   });
 }
 
-module.exports = { generateAnswer, generateAnswerStream };
+module.exports = { generateAnswer, generateAnswerStream, getGroqClient };

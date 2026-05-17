@@ -20,6 +20,7 @@ const { chunkTextSmart }                      = require('./chunker');
 const { embedText, embedChunks }              = require('./embedder');
 const vectorStore                              = require('./vectorStore');
 const { generateAnswer, generateAnswerStream } = require('./generator');
+const { rewriteQuery, generateHyDE, rerankChunks, enforceTokenLimit, getTradeoffConfig, evaluateAnswer } = require('./advancedRag');
 
 // ── Ingestion ─────────────────────────────────────────────────────────────────
 
@@ -90,16 +91,22 @@ async function ingestDocument(filePath, docId, filename) {
 
 // ── Query helpers ─────────────────────────────────────────────────────────────
 
-function resolveChunks(docIds, queryEmbedding, topK) {
+async function resolveChunksAsync(docIds, question, queryEmbedding, config) {
   const validIds = docIds.filter(id => vectorStore.hasDocument(id));
   if (validIds.length === 0) throw new Error('Document(s) not found. Please upload first.');
 
   const raw = validIds.length === 1
-    ? vectorStore.retrieve(validIds[0], queryEmbedding, topK)
-    : vectorStore.retrieveMulti(validIds, queryEmbedding, topK);
+    ? vectorStore.retrieve(validIds[0], queryEmbedding, config.topK)
+    : vectorStore.retrieveMulti(validIds, queryEmbedding, config.topK);
 
-  const filtered = raw.filter(c => c.score >= 0.3);
-  return { validIds, chunks: filtered.length > 0 ? filtered : raw.slice(0, 3) };
+  let filtered = raw.filter(c => c.score >= 0.2); // lowered threshold to allow reranker to work
+  
+  if (config.useReranking && filtered.length > 0) {
+    filtered = await rerankChunks(question, filtered);
+  }
+
+  const finalChunks = enforceTokenLimit(filtered, config.maxTokens);
+  return { validIds, chunks: finalChunks.length > 0 ? finalChunks : raw.slice(0, 3) };
 }
 
 // ── One-shot query (used by /api/query) ───────────────────────────────────────
@@ -108,24 +115,57 @@ async function queryDocument(docId, question, topK = 5) {
   return queryDocuments([docId], question, topK);
 }
 
-async function queryDocuments(docIds, question, topK = 5) {
+async function queryDocuments(docIds, question, topK = 5, mode = 'fast') {
   const ids = Array.isArray(docIds) ? docIds : [docIds];
-  const queryEmbedding = await embedText(question, 'RETRIEVAL_QUERY');
-  const { validIds, chunks } = resolveChunks(ids, queryEmbedding, topK);
+  
+  // Tradeoff between speed and accuracy
+  const config = getTradeoffConfig(mode);
+  let finalQuery = question;
+
+  // Corrective RAG (HyDE) or Query Rewriting
+  if (config.useHyDE) {
+    const hydeAnswer = await generateHyDE(question);
+    finalQuery = `${question}\n${hydeAnswer}`;
+  } else if (config.useQueryRewrite) {
+    const queries = await rewriteQuery(question);
+    finalQuery = queries.join(' ');
+  }
+
+  const queryEmbedding = await embedText(finalQuery, 'RETRIEVAL_QUERY');
+  const { validIds, chunks } = await resolveChunksAsync(ids, question, queryEmbedding, config);
 
   const metas    = validIds.map(id => vectorStore.getDocumentMeta(id));
   const filename = metas.map(m => m.filename).join(' + ');
 
   const { answer, model, tokensUsed } = await generateAnswer(question, chunks, filename);
-  return { answer, retrievedChunks: chunks, model, tokensUsed, docMetas: metas };
+  
+  // LLM Judge (only run on accurate mode to save time/tokens)
+  let judgeResult = null;
+  if (mode === 'accurate') {
+    judgeResult = await evaluateAnswer(question, answer, chunks);
+  }
+
+  return { answer, retrievedChunks: chunks, model, tokensUsed, docMetas: metas, judgeResult };
 }
 
 // ── Streaming query (used by /api/query/stream) ───────────────────────────────
 
-async function queryDocumentsStream(docIds, question, topK = 5) {
+async function queryDocumentsStream(docIds, question, topK = 5, mode = 'fast') {
   const ids = Array.isArray(docIds) ? docIds : [docIds];
-  const queryEmbedding = await embedText(question, 'RETRIEVAL_QUERY');
-  const { validIds, chunks } = resolveChunks(ids, queryEmbedding, topK);
+  
+  const config = getTradeoffConfig(mode);
+  let finalQuery = question;
+  
+  if (config.useHyDE) {
+    const hydeAnswer = await generateHyDE(question);
+    finalQuery = `${question}\n${hydeAnswer}`;
+  } else if (config.useQueryRewrite) {
+    const queries = await rewriteQuery(question);
+    finalQuery = queries.join(' ');
+  }
+
+  const queryEmbedding = await embedText(finalQuery, 'RETRIEVAL_QUERY');
+  const { validIds, chunks } = await resolveChunksAsync(ids, question, queryEmbedding, config);
 
   const metas    = validIds.map(id => vectorStore.getDocumentMeta(id));
   const filename = metas.map(m => m.filename).join(' + ');
