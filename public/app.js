@@ -343,23 +343,25 @@ async function sendQuestion() {
         if (!line.startsWith('data: ')) continue;
         const raw = line.slice(6).trim();
         if (!raw) continue;
+        let evt;
         try {
-          const evt = JSON.parse(raw);
-          if (evt.type === 'chunks') {
-            chunks = evt.chunks || [];
-            updateStudioChunks(chunks);
-          } else if (evt.type === 'token') {
-            fullText += evt.text;
-            renderStreamingContent(bubbleEl, fullText, false);
-            scrollToBottom();
-          } else if (evt.type === 'done') {
-            renderStreamingContent(bubbleEl, fullText, true);
-            attachSourcesAccordion(msgDiv, chunks);
-            addMsgTime(msgDiv);
-          } else if (evt.type === 'error') {
-            throw new Error(evt.error);
-          }
-        } catch (parseErr) { /* partial JSON, skip */ }
+          evt = JSON.parse(raw);
+        } catch (parseErr) { continue; /* partial JSON, skip */ }
+
+        if (evt.type === 'chunks') {
+          chunks = evt.chunks || [];
+          updateStudioChunks(chunks);
+        } else if (evt.type === 'token') {
+          fullText += evt.text;
+          renderStreamingContent(bubbleEl, fullText, false);
+          scrollToBottom();
+        } else if (evt.type === 'done') {
+          renderStreamingContent(bubbleEl, fullText, true);
+          attachSourcesAccordion(msgDiv, chunks);
+          addMsgTime(msgDiv);
+        } else if (evt.type === 'error') {
+          throw new Error(evt.error);
+        }
       }
     }
   } catch (err) {
@@ -448,6 +450,13 @@ function appendTyping() {
 function removeTyping(id) { const el = $(id); if (el) el.remove(); }
 
 function appendErrorMsg(text) {
+  const last = messagesList.lastElementChild;
+  if (last && last.classList.contains('assistant')) {
+    const bubble = last.querySelector('.msg-bubble');
+    if (bubble && bubble.textContent.trim() === '') {
+      last.remove();
+    }
+  }
   const div = document.createElement('div');
   div.className = 'message assistant';
   div.innerHTML = `
